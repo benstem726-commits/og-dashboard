@@ -2,7 +2,6 @@
 <html>
 <head>
     <title>OG Market Dashboard</title>
-
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style>
@@ -12,6 +11,8 @@
             font-family: Arial;
             text-align: center;
         }
+
+        h1 { margin-top: 20px; }
 
         .container {
             display: flex;
@@ -35,26 +36,28 @@
             box-shadow: 0 0 35px rgba(0,255,255,0.7);
         }
 
-        .buy { color: lime; font-weight: bold; }
-        .sell { color: red; font-weight: bold; }
-        .hold { color: yellow; font-weight: bold; }
+        .buy { color: lime; }
+        .sell { color: red; }
+        .hold { color: yellow; }
+
+        .strong {
+            font-weight: bold;
+            text-shadow: 0 0 10px currentColor;
+        }
 
         .bullish { color: cyan; }
         .bearish { color: orange; }
     </style>
 
-    <!-- AUTO REFRESH -->
     <script>
-        setTimeout(() => {
-            location.reload();
-        }, 30000);
+        setTimeout(() => { location.reload(); }, 30000);
     </script>
-
 </head>
 
 <body>
 
 <h1>🚀 OG Market Dashboard</h1>
+<h2>{{ summary }}</h2>
 
 <div class="container">
 
@@ -67,17 +70,21 @@
     <p>📊 Change: {{ item.change }}%</p>
     <p>📉 RSI: {{ item.rsi }}</p>
 
-    <p class="{% if item.trend == 'Bullish' %}bullish{% else %}bearish{% endif %}">
+    <p class="{{ 'bullish' if item.trend=='Bullish' else 'bearish' }}">
         {{ item.trend }}
     </p>
 
     <p>{{ item.risk }} RISK</p>
 
-    <h3 class="{% if item.signal == 'BUY' %}buy{% elif item.signal == 'SELL' %}sell{% else %}hold{% endif %}">
-        {{ item.signal }} SIGNAL
+    <h3 class="
+        {% if 'BUY' in item.signal %}buy{% elif 'SELL' in item.signal %}sell{% else %}hold{% endif %}
+        {% if 'STRONG' in item.signal %}strong{% endif %}
+    ">
+        {{ item.signal }}
     </h3>
 
-    <!-- CHART -->
+    <p>🔥 Confidence: {{ item.confidence }}%</p>
+
     <canvas id="chart{{ loop.index }}"></canvas>
 
     <script>
@@ -88,10 +95,9 @@
             data: {
                 labels: {{ range(item.chart|length) | list }},
                 datasets: [{
-                    label: "{{ item.asset }}",
                     data: {{ item.chart }},
                     borderWidth: 2,
-                    tension: 0.3
+                    tension: 0.4
                 }]
             },
             options: {
