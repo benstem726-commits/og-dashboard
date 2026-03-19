@@ -56,13 +56,7 @@ def get_data():
 # -----------------------------
 @app.route("/")
 def home():
-    try:
-        data = get_data()
-        return render_template("index.html", data=data)
-    except Exception as e:
-        print("ERROR in route:", e)
-        return "App is running 🚀 (fallback mode)"
-
+    return "🚀 OG Dashboard is LIVE"
 
 # -----------------------------
 # LOCAL RUN (not used in Railway but safe)
