@@ -65,6 +65,13 @@ def get_data():
             # ----------------
             risk = "High" if vol > 0.02 else "Low"
 
+        # ----------------
+        # NOISE FILTER (avoid fake signals)
+        # ----------------
+        if abs(change) < 0.001:
+            signal = "HOLD"
+
+        else:
             # ----------------
             # IMPROVED SIGNAL LOGIC
             # ----------------
@@ -79,9 +86,9 @@ def get_data():
 
             elif ema_short < ema_long and change < 0:
                 signal = "SELL"
- 
+
             else:
-                signal = "HOLD"
+                signal = "HOLD"    
 
             # ----------------
             # CONFIDENCE
