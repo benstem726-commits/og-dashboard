@@ -1,111 +1,167 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>OG Market Dashboard</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<title>OG Market Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-    <style>
-        body {
-            background: linear-gradient(135deg, #0f172a, #020617);
-            color: white;
-            font-family: Arial;
-            text-align: center;
-        }
+<style>
+body {
+    background: radial-gradient(circle at top, #0f172a, #020617);
+    color: white;
+    font-family: Arial;
+    text-align: center;
+}
 
-        h1 { margin-top: 20px; }
+/* HEADER */
+h1 { font-size: 32px; margin-top: 20px; }
 
-        .container {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-        }
+/* ALERT BAR */
+.alert {
+    background: linear-gradient(90deg, #00ffcc, #00ffaa);
+    color: black;
+    padding: 10px;
+    font-weight: bold;
+    margin: 10px;
+    border-radius: 10px;
+}
 
-        .card {
-            width: 280px;
-            margin: 20px;
-            padding: 20px;
-            border-radius: 15px;
-            background: rgba(255,255,255,0.05);
-            backdrop-filter: blur(10px);
-            box-shadow: 0 0 20px rgba(0,255,255,0.2);
-            transition: 0.3s;
-        }
+/* GRID */
+.container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+}
 
-        .card:hover {
-            transform: scale(1.05);
-            box-shadow: 0 0 35px rgba(0,255,255,0.7);
-        }
+/* CARD */
+.card {
+    width: 280px;
+    margin: 15px;
+    padding: 20px;
+    border-radius: 20px;
+    background: rgba(255,255,255,0.05);
+    backdrop-filter: blur(15px);
+    box-shadow: 0 0 25px rgba(0,255,255,0.2);
+    transition: 0.3s;
+}
 
-        .buy { color: lime; }
-        .sell { color: red; }
-        .hold { color: yellow; }
+.card:hover {
+    transform: translateY(-5px) scale(1.05);
+    box-shadow: 0 0 40px rgba(0,255,255,0.7);
+}
 
-        .strong {
-            font-weight: bold;
-            text-shadow: 0 0 10px currentColor;
-        }
+/* BEST CARD */
+.best {
+    border: 2px solid gold;
+    box-shadow: 0 0 40px gold;
+}
 
-        .bullish { color: cyan; }
-        .bearish { color: orange; }
-    </style>
+/* SIGNAL COLORS */
+.buy { color: lime; }
+.sell { color: red; }
+.hold { color: yellow; }
 
-    <script>
-        setTimeout(() => { location.reload(); }, 30000);
-    </script>
+/* STRONG GLOW */
+.strong {
+    font-weight: bold;
+    animation: glow 1s infinite alternate;
+}
+
+@keyframes glow {
+    from { text-shadow: 0 0 5px currentColor; }
+    to { text-shadow: 0 0 20px currentColor; }
+}
+
+/* TREND */
+.bullish { color: cyan; }
+.bearish { color: orange; }
+
+/* CONFIDENCE BAR */
+.bar {
+    height: 8px;
+    border-radius: 10px;
+    background: #111;
+    margin-top: 5px;
+}
+
+.fill {
+    height: 100%;
+    border-radius: 10px;
+    background: linear-gradient(90deg, lime, yellow, red);
+}
+
+/* MOBILE */
+@media(max-width: 600px){
+    .card { width: 90%; }
+}
+</style>
+
+<script>
+setTimeout(() => { location.reload(); }, 30000);
+</script>
 </head>
 
 <body>
 
 <h1>🚀 OG Market Dashboard</h1>
 <h2>{{ summary }}</h2>
+<p>⏱ Updated: {{ time }}</p>
+
+{% if best %}
+<div class="alert">
+🔥 Best Trade Right Now: {{ best.asset }} ({{ best.signal }})
+</div>
+{% endif %}
 
 <div class="container">
 
 {% for item in data %}
-<div class="card">
+<div class="card {% if best and item.asset == best.asset %}best{% endif %}">
 
-    <h2>{{ item.asset }}</h2>
+<h2>{{ item.asset }}</h2>
 
-    <p>💰 Price: {{ item.price }}</p>
-    <p>📊 Change: {{ item.change }}%</p>
-    <p>📉 RSI: {{ item.rsi }}</p>
+<p>💰 {{ item.price }}</p>
+<p>📊 {{ item.change }}%</p>
+<p>📉 RSI: {{ item.rsi }}</p>
 
-    <p class="{{ 'bullish' if item.trend=='Bullish' else 'bearish' }}">
-        {{ item.trend }}
-    </p>
+<p class="{{ 'bullish' if item.trend=='Bullish' else 'bearish' }}">
+{{ item.trend }}
+</p>
 
-    <p>{{ item.risk }} RISK</p>
+<p>{{ item.risk }} RISK</p>
 
-    <h3 class="
-        {% if 'BUY' in item.signal %}buy{% elif 'SELL' in item.signal %}sell{% else %}hold{% endif %}
-        {% if 'STRONG' in item.signal %}strong{% endif %}
-    ">
-        {{ item.signal }}
-    </h3>
+<h3 class="
+{% if 'BUY' in item.signal %}buy{% elif 'SELL' in item.signal %}sell{% else %}hold{% endif %}
+{% if 'STRONG' in item.signal %}strong{% endif %}
+">
+{{ item.signal }}
+</h3>
 
-    <p>🔥 Confidence: {{ item.confidence }}%</p>
+<!-- CONFIDENCE BAR -->
+<div class="bar">
+<div class="fill" style="width: {{ item.confidence }}%"></div>
+</div>
+<p>🔥 {{ item.confidence }}%</p>
 
-    <canvas id="chart{{ loop.index }}"></canvas>
+<!-- CHART -->
+<canvas id="chart{{ loop.index }}"></canvas>
 
-    <script>
-        const ctx{{ loop.index }} = document.getElementById('chart{{ loop.index }}');
-
-        new Chart(ctx{{ loop.index }}, {
-            type: 'line',
-            data: {
-                labels: {{ range(item.chart|length) | list }},
-                datasets: [{
-                    data: {{ item.chart }},
-                    borderWidth: 2,
-                    tension: 0.4
-                }]
-            },
-            options: {
-                plugins: { legend: { display: false } },
-                scales: { x: { display: false }, y: { display: false } }
-            }
-        });
-    </script>
+<script>
+new Chart(document.getElementById("chart{{ loop.index }}"), {
+    type: "line",
+    data: {
+        labels: {{ range(item.chart|length)|list }},
+        datasets: [{
+            data: {{ item.chart }},
+            borderWidth: 2,
+            tension: 0.4
+        }]
+    },
+    options: {
+        plugins: { legend: { display: false } },
+        scales: { x: { display: false }, y: { display: false } }
+    }
+});
+</script>
 
 </div>
 {% endfor %}
