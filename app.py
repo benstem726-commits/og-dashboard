@@ -66,16 +66,20 @@ def get_data():
             risk = "High" if vol > 0.02 else "Low"
 
             # ----------------
-            # SIGNAL (SMART)
+            # IMPROVED SIGNAL LOGIC
             # ----------------
-            if ema_short > ema_long and rsi_value < 60:
+            if ema_short > ema_long and rsi_value < 65 and change > 0:
                 signal = "STRONG BUY"
-            elif ema_short > ema_long:
+
+            elif ema_short > ema_long and change > 0:
                 signal = "BUY"
-            elif ema_short < ema_long and rsi_value > 40:
+
+            elif ema_short < ema_long and rsi_value > 35 and change < 0:
                 signal = "STRONG SELL"
-            elif ema_short < ema_long:
+
+            elif ema_short < ema_long and change < 0:
                 signal = "SELL"
+ 
             else:
                 signal = "HOLD"
 
