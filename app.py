@@ -123,13 +123,25 @@ def get_data():
         bearish = len(results) - bullish
         summary = "Bullish Market 🚀" if bullish > bearish else "Bearish Market 🔻"
 
-    return results, summary
+        # ----------------
+        # BEST TRADE PICK
+        # ----------------
+        best_trade = None
+        if len(results) > 0:
+            best_trade = max(results, key=lambda x: x["confidence"])
+
+        return results, summary, best_trade
 
 
 @app.route("/")
 def home():
-    data, summary = get_data()
-    return render_template("index.html", data=data, summary=summary)
+    data, summary, best = get_data()
+    return render_template(
+    "index.html",
+    data=data,
+    summary=summary,
+    best=best
+)
 
 
 if __name__ == "__main__":
