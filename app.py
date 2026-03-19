@@ -65,30 +65,30 @@ def get_data():
             # ----------------
             risk = "High" if vol > 0.02 else "Low"
 
-        # ----------------
-        # NOISE FILTER (avoid fake signals)
-        # ----------------
-        if abs(change) < 0.001:
-            signal = "HOLD"
-
-        else:
             # ----------------
-            # IMPROVED SIGNAL LOGIC
+            # NOISE FILTER (avoid fake signals)
             # ----------------
-            if ema_short > ema_long and rsi_value < 65 and change > 0:
-                signal = "STRONG BUY"
-
-            elif ema_short > ema_long and change > 0:
-                signal = "BUY"
-
-            elif ema_short < ema_long and rsi_value > 35 and change < 0:
-                signal = "STRONG SELL"
-
-            elif ema_short < ema_long and change < 0:
-                signal = "SELL"
+            if abs(change) < 0.001:
+                signal = "HOLD"
 
             else:
-                signal = "HOLD"    
+                # ----------------
+                # IMPROVED SIGNAL LOGIC
+                # ----------------
+                if ema_short > ema_long and rsi_value < 65 and change > 0:
+                    signal = "STRONG BUY"
+
+                elif ema_short > ema_long and change > 0:
+                    signal = "BUY"
+
+                elif ema_short < ema_long and rsi_value > 35 and change < 0:
+                    signal = "STRONG SELL"
+
+                elif ema_short < ema_long and change < 0:
+                    signal = "SELL"
+
+                else:
+                    signal = "HOLD"    
 
             # ----------------
             # CONFIDENCE
