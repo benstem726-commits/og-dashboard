@@ -2,11 +2,12 @@ from flask import Flask, render_template
 import yfinance as yf
 import pandas as pd
 import numpy as np
+import json
 
 app = Flask(__name__)
 
 # -----------------------------
-# FETCH DATA + SIGNAL LOGIC
+# FETCH DATA + SMART SIGNAL
 # -----------------------------
 def get_data():
     assets = ["BTC-USD", "ETH-USD", "AAPL"]
@@ -21,34 +22,44 @@ def get_data():
 
             close = data["Close"]
 
-            # Fix multi-column issue
             if len(close.shape) > 1:
                 close = close.iloc[:, 0]
 
             if len(close) < 20:
                 continue
 
-            # -----------------------------
-            # CALCULATIONS
-            # -----------------------------
+            # CHANGE + VOL
             change = (close.iloc[-1] - close.iloc[-5]) / close.iloc[-5]
             vol = close.pct_change().std()
 
-            # Moving averages (basic signal logic)
+            # EMA
             ema_short = close.ewm(span=5).mean().iloc[-1]
             ema_long = close.ewm(span=15).mean().iloc[-1]
 
-            # Trend
+            # RSI
+            delta = close.diff()
+            gain = (delta.where(delta > 0, 0)).rolling(14).mean()
+            loss = (-delta.where(delta < 0, 0)).rolling(14).mean()
+            rs = gain / loss
+            rsi = 100 - (100 / (1 + rs))
+            rsi_value = rsi.iloc[-1]
+
+            # TREND
             trend = "Bullish" if change > 0 else "Bearish"
 
-            # Risk
+            # RISK
             risk = "High" if vol > 0.02 else "Low"
 
-            # Signal logic
-            if ema_short > ema_long:
+            # SMART SIGNAL
+            if ema_short > ema_long and rsi_value < 70:
                 signal = "BUY"
-            else:
+            elif ema_short < ema_long and rsi_value > 30:
                 signal = "SELL"
+            else:
+                signal = "HOLD"
+
+            # CHART DATA (last 30 points)
+            chart_data = close.tail(30).tolist()
 
             results.append({
                 "asset": asset,
@@ -56,7 +67,9 @@ def get_data():
                 "change": round(change * 100, 2),
                 "trend": trend,
                 "risk": risk,
-                "signal": signal
+                "signal": signal,
+                "rsi": round(rsi_value, 2),
+                "chart": chart_data
             })
 
         except Exception as e:
@@ -71,16 +84,12 @@ def get_data():
 # -----------------------------
 @app.route("/")
 def home():
-    try:
-        data = get_data()
-        return render_template("index.html", data=data)
-    except Exception as e:
-        print("ERROR:", e)
-        return "⚠️ App running but data failed"
+    data = get_data()
+    return render_template("index.html", data=data)
 
 
 # -----------------------------
-# RUN (Railway compatible)
+# RUN
 # -----------------------------
 import os
 
