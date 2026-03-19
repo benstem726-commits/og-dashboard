@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>OG Market Dashboard</title>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+body {
+    background: #0f172a;
+    color: white;
+    font-family: Arial, sans-serif;
+    text-align: center;
+}
+
+h1 { margin-top: 20px; }
+
+.container {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    margin-top: 30px;
+}
+
+/* CARD */
+.card {
+    background: #1e293b;
+    padding: 20px;
+    border-radius: 12px;
+    width: 240px;
+    min-height: 360px;
+    transition: all 0.3s ease;
+}
+
+/* 🔥 PREMIUM GLOW */
+.card.buy {
+    box-shadow: 0 0 12px rgba(34, 197, 94, 0.6);
+}
+.card.sell {
+    box-shadow: 0 0 12px rgba(239, 68, 68, 0.6);
+}
+.card.hold {
+    box-shadow: 0 0 12px rgba(234, 179, 8, 0.6);
+}
+
+.card:hover {
+    transform: scale(1.05);
+    background: #334155;
+}
+
+/* RISK COLORS */
+.low { color: #22c55e; font-weight: bold; }
+.medium { color: #eab308; font-weight: bold; }
+.high { color: #ef4444; font-weight: bold; }
+
+/* SIGNAL COLORS */
+.signal { font-weight: bold; margin-top: 6px; }
+
+.buy { color: #22c55e; text-shadow: 0 0 8px #22c55e; }
+.sell { color: #ef4444; text-shadow: 0 0 8px #ef4444; }
+.hold { color: #eab308; text-shadow: 0 0 8px #eab308; }
+
+canvas { margin-top: 15px; }
+
+.summary { margin-top: 40px; }
+</style>
+</head>
+
+<body>
+
+<h1>🚀 OG Market Dashboard</h1>
+<h2>📊 Overall: {{ overall }}</h2>
+
+<div class="container">
+{% for item in data %}
+<div class="card {{ item.signal|lower }}">
+
+    <h2>{{ item.symbol }}</h2>
+
+    <p>Change: {{ item.price_change }}</p>
+    <p>Volatility: {{ item.volatility }}</p>
+
+    <p style="color:#38bdf8;">{{ item.trend }}</p>
+
+    <p class="signal {{ item.signal|lower }}">
+        {{ item.signal }}
+    </p>
+
+    <p class="{{ item.risk|lower }}">
+        {{ item.risk }} RISK
+    </p>
+
+    <!-- 🔥 CHART -->
+    <canvas id="chart-{{ loop.index }}" height="120"></canvas>
+
+</div>
+{% endfor %}
+</div>
+
+<div class="summary">
+    <h3>📌 Market Summary</h3>
+    <p>Strongest: {{ strongest }}</p>
+    <p>Weakest: {{ weakest }}</p>
+    <p>Most Volatile: {{ volatile }}</p>
+</div>
+
+<script>
+const marketData = JSON.parse('{{ data | tojson | safe }}');
+
+// 🚨 ALERT SYSTEM (WORKING)
+marketData.forEach(item => {
+    let prev = localStorage.getItem(item.symbol);
+
+    if (prev && prev !== item.signal) {
+        alert(🚨 ${item.symbol} changed to ${item.signal});
+    }
+
+    localStorage.setItem(item.symbol, item.signal);
+});
+
+// 📈 CHARTS
+window.addEventListener("DOMContentLoaded", function () {
+
+    marketData.forEach((item, index) => {
+
+        const canvas = document.getElementById("chart-" + (index + 1));
+        if (!canvas || !item.prices) return;
+
+        const ctx = canvas.getContext("2d");
+
+        let color = item.price_change > 0 ? "#22c55e" : "#ef4444";
+
+        new Chart(ctx, {
+            type: "line",
+            data: {
+                labels: item.prices.map((_, i) => i),
+                datasets: [{
+                    data: item.prices,
+                    borderColor: color,
+                    backgroundColor: "transparent",
+                    tension: 0.4,
+                    borderWidth: 2,
+                    pointRadius: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                animation: {
+                    duration: 1200,
+                    easing: "easeInOutQuart"
+                },
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    x: { display: false },
+                    y: { display: false }
+                }
+            },
+            plugins: [{
+                id: "glowEffect",
+                beforeDraw(chart) {
+                    const ctx = chart.ctx;
+                    ctx.save();
+                    ctx.shadowColor = color;
+                    ctx.shadowBlur = 12;
+                }
+            }]
+        });
+
+    });
+
+});
+
+// 🔄 AUTO REFRESH
+setInterval(() => {
+    location.reload();
+}, 30000);
+</script>
+
+</body>
+</html>
