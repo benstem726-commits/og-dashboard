@@ -56,7 +56,12 @@ def get_data():
 # -----------------------------
 @app.route("/")
 def home():
-    return "🚀 OG Dashboard is LIVE"
+    try:
+        data = get_data()
+        return render_template("index.html", data=data)
+    except Exception as e:
+        print("ERROR:", e)
+        return "⚠️ Error loading data"
 
 # -----------------------------
 # LOCAL RUN (not used in Railway but safe)
