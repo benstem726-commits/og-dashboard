@@ -86,7 +86,7 @@
         new Chart(ctx{{ loop.index }}, {
             type: 'line',
             data: {
-                labels: {{ item.chart | length | list }},
+                labels: {{ range(item.chart|length) | list }},
                 datasets: [{
                     label: "{{ item.asset }}",
                     data: {{ item.chart }},
