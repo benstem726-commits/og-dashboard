@@ -43,6 +43,14 @@ body {
     height:80%;
     background:#000;
 }
+
+.closeBtn {
+    position:absolute;
+    right:10px;
+    top:10px;
+    color:white;
+    cursor:pointer;
+}
 </style>
 </head>
 
@@ -84,6 +92,7 @@ body {
 </div>
 
 <div id="chartModal">
+    <div class="closeBtn" onclick="closeChart()">❌</div>
     <div id="chartContainer" style="height:100%"></div>
 </div>
 
@@ -92,8 +101,14 @@ async function searchAsset(){
     let q=document.getElementById("search").value;
     let res=await fetch(/search?q=${q});
     let data=await res.json();
+
     document.getElementById("searchResults").innerHTML =
         data.map(a=><div>${a}</div>).join("");
+}
+
+function closeChart(){
+    document.getElementById("chartModal").style.display="none";
+    document.getElementById("chartContainer").innerHTML="";
 }
 
 async function openChart(asset){
