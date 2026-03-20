@@ -1,172 +1,122 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>OG Market Dashboard</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <title>OG Market Dashboard</title>
 
-<style>
-body {
-    background: radial-gradient(circle at top, #0f172a, #020617);
-    color: white;
-    font-family: Arial;
-    text-align: center;
-}
+    <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
 
-/* HEADER */
-h1 { font-size: 32px; margin-top: 20px; }
+    <style>
+        body {
+            background: #0b1220;
+            color: white;
+            font-family: Arial;
+            text-align: center;
+        }
 
-/* ALERT BAR */
-.alert {
-    background: linear-gradient(90deg, #00ffcc, #00ffaa);
-    color: black;
-    padding: 10px;
-    font-weight: bold;
-    margin: 10px;
-    border-radius: 10px;
-}
+        .cards {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
 
-/* GRID */
-.container {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-}
+        .card {
+            background: #111827;
+            padding: 20px;
+            margin: 10px;
+            border-radius: 15px;
+            width: 200px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
 
-/* CARD */
-.card {
-    width: 280px;
-    margin: 15px;
-    padding: 20px;
-    border-radius: 20px;
-    background: rgba(255,255,255,0.05);
-    backdrop-filter: blur(15px);
-    box-shadow: 0 0 25px rgba(0,255,255,0.2);
-    transition: 0.3s;
-}
+        .card:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px cyan;
+        }
 
-.card:hover {
-    transform: translateY(-5px) scale(1.05);
-    box-shadow: 0 0 40px rgba(0,255,255,0.7);
-}
+        .buy { color: lime; }
+        .sell { color: red; }
 
-/* BEST CARD */
-.best {
-    border: 2px solid gold;
-    box-shadow: 0 0 40px gold;
-}
-
-/* SIGNAL COLORS */
-.buy { color: lime; }
-.sell { color: red; }
-.hold { color: yellow; }
-
-/* STRONG GLOW */
-.strong {
-    font-weight: bold;
-    animation: glow 1s infinite alternate;
-}
-
-@keyframes glow {
-    from { text-shadow: 0 0 5px currentColor; }
-    to { text-shadow: 0 0 20px currentColor; }
-}
-
-/* TREND */
-.bullish { color: cyan; }
-.bearish { color: orange; }
-
-/* CONFIDENCE BAR */
-.bar {
-    height: 8px;
-    border-radius: 10px;
-    background: #111;
-    margin-top: 5px;
-}
-
-.fill {
-    height: 100%;
-    border-radius: 10px;
-    background: linear-gradient(90deg, lime, yellow, red);
-}
-
-/* MOBILE */
-@media(max-width: 600px){
-    .card { width: 90%; }
-}
-</style>
-
-<script>
-setTimeout(() => { location.reload(); }, 30000);
-</script>
+        #chartModal {
+            display:none;
+            position:fixed;
+            top:10%;
+            left:10%;
+            width:80%;
+            height:70%;
+            background:#000;
+        }
+    </style>
 </head>
 
 <body>
 
 <h1>🚀 OG Market Dashboard</h1>
 <h2>{{ summary }}</h2>
-<p>⏱ Updated: {{ time }}</p>
 
-{% if best %}
-<div class="alert">
-🔥 Best Trade Right Now: {{ best.asset }} ({{ best.signal }})
+{% if best_trade %}
+<div style="background:lime; padding:10px; color:black;">
+🔥 Best Trade: {{ best_trade.asset }} ({{ best_trade.signal }})
 </div>
 {% endif %}
 
-<div class="container">
+<br>
 
+<input type="text" id="search" placeholder="Search..." onkeyup="searchAsset()">
+<div id="searchResults"></div>
+
+<div class="cards">
 {% for item in data %}
-<div class="card {% if best and item.asset == best.asset %}best{% endif %}">
-
-<h2>{{ item.asset }}</h2>
-
-<p>💰 {{ item.price }}</p>
-<p>📊 {{ item.change }}%</p>
-<p>📉 RSI: {{ item.rsi }}</p>
-
-<p class="{{ 'bullish' if item.trend=='Bullish' else 'bearish' }}">
-{{ item.trend }}
-</p>
-
-<p>{{ item.risk }} RISK</p>
-
-<h3 class="
-{% if 'BUY' in item.signal %}buy{% elif 'SELL' in item.signal %}sell{% else %}hold{% endif %}
-{% if 'STRONG' in item.signal %}strong{% endif %}
-">
-{{ item.signal }}
-</h3>
-
-<!-- CONFIDENCE BAR -->
-<div class="bar">
-<div class="fill" style="width: {{ item.confidence }}%"></div>
-</div>
-<p>🔥 {{ item.confidence }}%</p>
-
-<!-- CHART -->
-<canvas id="chart{{ loop.index }}"></canvas>
-
-<script>
-new Chart(document.getElementById("chart{{ loop.index }}"), {
-    type: "line",
-    data: {
-        labels: {{ range(item.chart|length)|list }},
-        datasets: [{
-            data: {{ item.chart }},
-            borderWidth: 2,
-            tension: 0.4
-        }]
-    },
-    options: {
-        plugins: { legend: { display: false } },
-        scales: { x: { display: false }, y: { display: false } }
-    }
-});
-</script>
-
+<div class="card" onclick="openChart('{{ item.asset }}')">
+    <h3>{{ item.asset }}</h3>
+    <p>💰 {{ item.price }}</p>
+    <p>📊 {{ item.change }}%</p>
+    <p>RSI: {{ item.rsi }}</p>
+    <p class="{{ 'buy' if 'BUY' in item.signal else 'sell' }}">
+        {{ item.signal }}
+    </p>
 </div>
 {% endfor %}
-
 </div>
+
+<div id="chartModal">
+    <div id="chartContainer" style="height:100%"></div>
+</div>
+
+<script>
+async function searchAsset() {
+    let q = document.getElementById("search").value;
+    let res = await fetch(/search?q=${q});
+    let data = await res.json();
+
+    document.getElementById("searchResults").innerHTML =
+        data.map(a => <div>${a}</div>).join("");
+}
+
+async function openChart(asset) {
+    document.getElementById("chartModal").style.display = "block";
+
+    const chart = LightweightCharts.createChart(
+        document.getElementById("chartContainer"),
+        { width: 800, height: 400 }
+    );
+
+    const candleSeries = chart.addCandlestickSeries();
+
+    let res = await fetch(/predict/${asset});
+    let data = await res.json();
+
+    let candles = data.chart.map((v, i) => ({
+        time: i,
+        open: v * 0.99,
+        high: v * 1.01,
+        low: v * 0.98,
+        close: v
+    }));
+
+    candleSeries.setData(candles);
+}
+</script>
 
 </body>
 </html>
