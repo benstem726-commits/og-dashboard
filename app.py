@@ -11,13 +11,17 @@ assets = [
     "AVAX-USD","MATIC-USD","DOT-USD"
 ]
 
+# 🔥 FIXED RSI
 def calculate_rsi(prices, period=14):
-    deltas = np.diff(prices)
-    gain = np.maximum(deltas, 0)
-    loss = -np.minimum(deltas, 0)
+    if len(prices) < period + 1:
+        return 50
 
-    avg_gain = np.mean(gain[:period]) if len(gain) >= period else 0
-    avg_loss = np.mean(loss[:period]) if len(loss) >= period else 1
+    deltas = np.diff(prices)
+    gains = np.where(deltas > 0, deltas, 0)
+    losses = np.where(deltas < 0, -deltas, 0)
+
+    avg_gain = np.mean(gains[-period:])
+    avg_loss = np.mean(losses[-period:])
 
     if avg_loss == 0:
         return 100
@@ -33,13 +37,22 @@ def get_data():
         try:
             data = yf.download(asset, period="1d", interval="5m", progress=False)
 
-            if data.empty:
+            if data.empty or len(data) < 20:
                 continue
 
-            closes = data["Close"].dropna().values
+            ohlc = data.tail(40)
 
-            if len(closes) < 20:
-                continue
+            candles = []
+            for i, row in ohlc.iterrows():
+                candles.append({
+                    "time": int(i.timestamp()),
+                    "open": float(row["Open"]),
+                    "high": float(row["High"]),
+                    "low": float(row["Low"]),
+                    "close": float(row["Close"])
+                })
+
+            closes = ohlc["Close"].values
 
             price = float(closes[-1])
             prev_price = float(closes[-2])
@@ -49,7 +62,7 @@ def get_data():
             ema_long = np.mean(closes[-15:])
             rsi = calculate_rsi(closes)
 
-            # 🔥 PRO SIGNAL LOGIC
+            # 🔥 PRO SIGNAL
             score = 0
 
             if ema_short > ema_long:
@@ -57,28 +70,28 @@ def get_data():
             else:
                 score -= 1
 
-            if change > 0.003:
+            if change > 0.005:
                 score += 1
-            elif change < -0.003:
+            elif change < -0.005:
                 score -= 1
 
             if rsi < 30:
-                score += 1
+                score += 2
             elif rsi > 70:
                 score -= 2
 
-            if score >= 2:
+            if score >= 3:
                 signal = "STRONG BUY"
-            elif score == 1:
+            elif score == 2:
                 signal = "BUY"
-            elif score == 0:
+            elif score in [0,1]:
                 signal = "HOLD"
             elif score == -1:
                 signal = "SELL"
             else:
                 signal = "STRONG SELL"
 
-            confidence = min(max((score + 2) * 25, 10), 100)
+            confidence = min(max((score + 3) * 20, 10), 100)
 
             results.append({
                 "asset": asset,
@@ -87,14 +100,13 @@ def get_data():
                 "rsi": round(rsi, 2),
                 "signal": signal,
                 "confidence": confidence,
-                "chart": closes[-30:].tolist()
+                "chart": candles
             })
 
         except Exception as e:
             print("ERROR:", asset, e)
             continue
 
-    # Market summary
     bullish = len([x for x in results if "BUY" in x["signal"]])
     bearish = len(results) - bullish
 
@@ -114,11 +126,9 @@ def home():
 @app.route("/predict/<asset>")
 def predict(asset):
     data, _, _ = get_data()
-
     for item in data:
         if item["asset"].lower() == asset.lower():
             return jsonify(item)
-
     return jsonify({"error": "Not found"})
 
 
