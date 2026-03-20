@@ -139,7 +139,12 @@ def get_data():
 # -------------------------------
 @app.route("/")
 def home():
-    data, summary, best = get_data()
+    try:
+        data, summary, best = get_data()
+    except Exception as e:
+        print("ERROR HOME:", e)
+        data, summary, best = [], "Error loading data", None
+
     return render_template(
         "index.html",
         data=data,
