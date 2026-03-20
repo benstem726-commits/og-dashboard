@@ -11,7 +11,6 @@ ASSETS = [
     "AVAX-USD","MATIC-USD","DOT-USD"
 ]
 
-# ✅ SAFE RSI (NO NAN EVER)
 def calculate_rsi(prices, period=14):
     prices = np.array(prices)
 
@@ -42,17 +41,18 @@ def get_data():
         try:
             data = yf.download(asset, period="1d", interval="5m", progress=False)
 
+            print("DEBUG:", asset, "rows:", len(data))
+
             if data is None or data.empty:
                 continue
 
             data = data.dropna()
 
-            if len(data) < 30:
+            if len(data) < 10:
                 continue
 
             ohlc = data.tail(40)
 
-            # ✅ CLEAN CANDLES
             candles = []
             for i, row in ohlc.iterrows():
                 if any(np.isnan([row["Open"], row["High"], row["Low"], row["Close"]])):
@@ -68,7 +68,7 @@ def get_data():
 
             closes = ohlc["Close"].dropna().values
 
-            if len(closes) < 20:
+            if len(closes) < 10:
                 continue
 
             price = float(closes[-1])
@@ -82,7 +82,6 @@ def get_data():
             if np.isnan(rsi):
                 rsi = 50
 
-            # ✅ BALANCED SIGNAL SYSTEM
             score = 0
 
             if ema_short > ema_long:
@@ -125,14 +124,25 @@ def get_data():
 
         except Exception as e:
             print("ERROR:", asset, e)
-            continue
+
+    # ✅ FALLBACK (NO EMPTY UI EVER AGAIN)
+    if not results:
+        results = [{
+            "asset": "BTC-USD",
+            "price": 0,
+            "change": 0,
+            "rsi": 50,
+            "signal": "HOLD",
+            "confidence": 0,
+            "chart": []
+        }]
 
     bullish = len([x for x in results if "BUY" in x["signal"]])
     bearish = len(results) - bullish
 
     summary = "Bullish Market 🚀" if bullish >= bearish else "Bearish Market 🔻"
 
-    best_trade = max(results, key=lambda x: x["confidence"]) if results else None
+    best_trade = max(results, key=lambda x: x["confidence"])
 
     return results, summary, best_trade
 
@@ -141,7 +151,6 @@ def get_data():
 def home():
     data, summary, best_trade = get_data()
     return render_template("index.html", data=data, summary=summary, best_trade=best_trade)
-
 
 @app.route("/predict/<asset>")
 def predict(asset):
