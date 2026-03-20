@@ -1,52 +1,49 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>OG Market Dashboard</title>
+<title>OG Market Dashboard</title>
 
-    <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+<script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
 
-    <style>
-        body {
-            background: #0b1220;
-            color: white;
-            font-family: Arial;
-            text-align: center;
-        }
+<style>
+body {
+    background:#0b1220;
+    color:white;
+    text-align:center;
+    font-family:Arial;
+}
 
-        .cards {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-        }
+.cards {
+    display:flex;
+    flex-wrap:wrap;
+    justify-content:center;
+}
 
-        .card {
-            background: #111827;
-            padding: 20px;
-            margin: 10px;
-            border-radius: 15px;
-            width: 200px;
-            cursor: pointer;
-            transition: 0.3s;
-        }
+.card {
+    background:#111827;
+    padding:15px;
+    margin:10px;
+    border-radius:12px;
+    width:180px;
+    cursor:pointer;
+    transition:0.3s;
+}
 
-        .card:hover {
-            transform: scale(1.05);
-            box-shadow: 0 0 20px cyan;
-        }
+.card:hover {
+    transform:scale(1.05);
+    box-shadow:0 0 15px cyan;
+}
 
-        .buy { color: lime; }
-        .sell { color: red; }
-
-        #chartModal {
-            display:none;
-            position:fixed;
-            top:10%;
-            left:10%;
-            width:80%;
-            height:70%;
-            background:#000;
-        }
-    </style>
+#chartModal {
+    display:none;
+    position:fixed;
+    top:5%;
+    left:5%;
+    width:90%;
+    height:80%;
+    background:#000;
+}
+</style>
 </head>
 
 <body>
@@ -55,7 +52,7 @@
 <h2>{{ summary }}</h2>
 
 {% if best_trade %}
-<div style="background:lime; padding:10px; color:black;">
+<div style="background:lime; color:black; padding:10px;">
 🔥 Best Trade: {{ best_trade.asset }} ({{ best_trade.signal }})
 </div>
 {% endif %}
@@ -72,8 +69,15 @@
     <p>💰 {{ item.price }}</p>
     <p>📊 {{ item.change }}%</p>
     <p>RSI: {{ item.rsi }}</p>
-    <p class="{{ 'buy' if 'BUY' in item.signal else 'sell' }}">
-        {{ item.signal }}
+
+    <p style="
+    color:
+    {% if 'BUY' in item.signal %}lime
+    {% elif 'SELL' in item.signal %}red
+    {% else %}orange
+    {% endif %}
+    ">
+    {{ item.signal }}
     </p>
 </div>
 {% endfor %}
@@ -84,21 +88,20 @@
 </div>
 
 <script>
-async function searchAsset() {
-    let q = document.getElementById("search").value;
-    let res = await fetch(/search?q=${q});
-    let data = await res.json();
-
+async function searchAsset(){
+    let q=document.getElementById("search").value;
+    let res=await fetch(/search?q=${q});
+    let data=await res.json();
     document.getElementById("searchResults").innerHTML =
-        data.map(a => <div>${a}</div>).join("");
+        data.map(a=><div>${a}</div>).join("");
 }
 
-async function openChart(asset) {
-    document.getElementById("chartModal").style.display = "block";
+async function openChart(asset){
+    document.getElementById("chartModal").style.display="block";
 
     const chart = LightweightCharts.createChart(
         document.getElementById("chartContainer"),
-        { width: 800, height: 400 }
+        { width:900, height:500 }
     );
 
     const candleSeries = chart.addCandlestickSeries();
@@ -106,15 +109,7 @@ async function openChart(asset) {
     let res = await fetch(/predict/${asset});
     let data = await res.json();
 
-    let candles = data.chart.map((v, i) => ({
-        time: i,
-        open: v * 0.99,
-        high: v * 1.01,
-        low: v * 0.98,
-        close: v
-    }));
-
-    candleSeries.setData(candles);
+    candleSeries.setData(data.chart);
 }
 </script>
 
