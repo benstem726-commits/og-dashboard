@@ -144,15 +144,21 @@ def get_data():
         return results, summary, best_trade
 
 
-@app.route("/")
-def home():
-    data, summary, best = get_data()
-    return render_template(
-    "index.html",
-    data=data,
-    summary=summary,
-    best=best
-)
+@app.route("/predict/<asset>")
+def predict(asset):
+    data, _, _ = get_data()
+
+    for item in data:
+        if item["asset"].lower() == asset.lower():
+            return {
+                "asset": item["asset"],
+                "signal": item["signal"],
+                "confidence": item["confidence"],
+                "rsi": item["rsi"],
+                "trend": item["trend"]
+            }
+
+    return {"error": "Asset not found"}
 
 
 if __name__ == "__main__":
