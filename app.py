@@ -1,83 +1,71 @@
-from flask import Flask, render_template, jsonify
+from flask import Flask, render_template, jsonify, request
 import yfinance as yf
-import pandas as pd
+import numpy as np
 import os
 
 app = Flask(__name__)
 
-# -------------------------------
-# RSI FUNCTION (SAFE)
-# -------------------------------
-def calculate_rsi(series, period=14):
-    try:
-        delta = series.diff()
-        gain = delta.clip(lower=0).rolling(period).mean()
-        loss = (-delta.clip(upper=0)).rolling(period).mean()
+assets = [
+    "BTC-USD","ETH-USD","SOL-USD","XRP-USD",
+    "BNB-USD","ADA-USD","DOGE-USD",
+    "AVAX-USD","MATIC-USD","DOT-USD"
+]
 
-        rs = gain / loss
-        rsi = 100 - (100 / (1 + rs))
-        return float(rsi.iloc[-1])
-    except:
-        return 50.0
+def calculate_rsi(prices, period=14):
+    deltas = np.diff(prices)
+    gain = np.maximum(deltas, 0)
+    loss = -np.minimum(deltas, 0)
 
+    avg_gain = np.mean(gain[:period]) if len(gain) >= period else 0
+    avg_loss = np.mean(loss[:period]) if len(loss) >= period else 1
 
-# -------------------------------
-# SAFE DATA FETCH
-# -------------------------------
-def safe_download(asset):
-    try:
-        data = yf.download(asset, period="5d", interval="15m", progress=False)
-        if data is None or data.empty:
-            return None
-        return data
-    except Exception as e:
-        print("DOWNLOAD ERROR:", asset, e)
-        return None
+    if avg_loss == 0:
+        return 100
+
+    rs = avg_gain / avg_loss
+    return 100 - (100 / (1 + rs))
 
 
-# -------------------------------
-# MAIN LOGIC
-# -------------------------------
 def get_data():
-    assets = ["BTC-USD", "ETH-USD", "SOL-USD", "XRP-USD"]
     results = []
 
     for asset in assets:
         try:
-            data = safe_download(asset)
-            if data is None:
+            data = yf.download(asset, period="1d", interval="5m", progress=False)
+
+            if data.empty:
                 continue
 
-            close = data["Close"]
+            closes = data["Close"].dropna().values
 
-            # Fix multi-column bug
-            if hasattr(close, "shape") and len(close.shape) > 1:
-                close = close.iloc[:, 0]
-
-            if len(close) < 30:
+            if len(closes) < 20:
                 continue
 
-            price = float(close.iloc[-1])
-            change = float((close.iloc[-1] - close.iloc[-10]) / close.iloc[-10])
+            price = float(closes[-1])
+            prev_price = float(closes[-2])
+            change = (price - prev_price) / prev_price
 
-            # Indicators
-            ema_short = close.ewm(span=9).mean().iloc[-1]
-            ema_long = close.ewm(span=21).mean().iloc[-1]
-            rsi = calculate_rsi(close)
-            volatility = close.pct_change().std()
+            ema_short = np.mean(closes[-5:])
+            ema_long = np.mean(closes[-15:])
+            rsi = calculate_rsi(closes)
 
-            trend = "Bullish" if change > 0 else "Bearish"
-            risk = "High" if volatility > 0.02 else "Low"
-
-            # SIGNAL (balanced)
+            # 🔥 PRO SIGNAL LOGIC
             score = 0
-            score += 1 if ema_short > ema_long else -1
-            score += 1 if change > 0 else -1
+
+            if ema_short > ema_long:
+                score += 1
+            else:
+                score -= 1
+
+            if change > 0.003:
+                score += 1
+            elif change < -0.003:
+                score -= 1
 
             if rsi < 30:
                 score += 1
             elif rsi > 70:
-                score -= 1
+                score -= 2
 
             if score >= 2:
                 signal = "STRONG BUY"
@@ -90,77 +78,56 @@ def get_data():
             else:
                 signal = "STRONG SELL"
 
-            confidence = min(50 + abs(score) * 20, 100)
-
-            chart = list(close.tail(20).values)
+            confidence = min(max((score + 2) * 25, 10), 100)
 
             results.append({
                 "asset": asset,
                 "price": round(price, 2),
                 "change": round(change * 100, 2),
                 "rsi": round(rsi, 2),
-                "trend": trend,
-                "risk": risk,
                 "signal": signal,
                 "confidence": confidence,
-                "chart": chart
+                "chart": closes[-30:].tolist()
             })
 
         except Exception as e:
-            print("PROCESS ERROR:", asset, e)
+            print("ERROR:", asset, e)
             continue
 
-    # Summary
-    if not results:
-        return [], "Market Loading...", None
+    # Market summary
+    bullish = len([x for x in results if "BUY" in x["signal"]])
+    bearish = len(results) - bullish
 
-    bullish = sum(1 for x in results if "BUY" in x["signal"])
-    bearish = sum(1 for x in results if "SELL" in x["signal"])
+    summary = "Bullish Market 🚀" if bullish >= bearish else "Bearish Market 🔻"
 
-    summary = "Bullish Market 🚀" if bullish > bearish else "Bearish Market 🔻"
-    best = max(results, key=lambda x: x["confidence"])
+    best_trade = max(results, key=lambda x: x["confidence"]) if results else None
 
-    return results, summary, best
+    return results, summary, best_trade
 
 
-# -------------------------------
-# ROUTES (SAFE)
-# -------------------------------
 @app.route("/")
 def home():
-    try:
-        data, summary, best = get_data()
-    except Exception as e:
-        print("HOME ERROR:", e)
-        data, summary, best = [], "Error loading market", None
-
-    return render_template(
-        "index.html",
-        data=data,
-        summary=summary,
-        best=best
-    )
+    data, summary, best_trade = get_data()
+    return render_template("index.html", data=data, summary=summary, best_trade=best_trade)
 
 
 @app.route("/predict/<asset>")
 def predict(asset):
-    try:
-        data, _, _ = get_data()
+    data, _, _ = get_data()
 
-        for item in data:
-            if item["asset"].lower() == asset.lower():
-                return jsonify(item)
+    for item in data:
+        if item["asset"].lower() == asset.lower():
+            return jsonify(item)
 
-        return jsonify({"error": "Asset not found"})
-
-    except Exception as e:
-        print("API ERROR:", e)
-        return jsonify({"error": "Server error"})
+    return jsonify({"error": "Not found"})
 
 
-# -------------------------------
-# RUN
-# -------------------------------
+@app.route("/search")
+def search():
+    q = request.args.get("q", "").upper()
+    return jsonify([a for a in assets if q in a])
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", port=port)
