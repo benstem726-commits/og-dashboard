@@ -5,15 +5,20 @@ import os
 
 app = Flask(__name__)
 
-assets = [
+ASSETS = [
     "BTC-USD","ETH-USD","SOL-USD","XRP-USD",
     "BNB-USD","ADA-USD","DOGE-USD",
     "AVAX-USD","MATIC-USD","DOT-USD"
 ]
 
-# 🔥 FIXED RSI
+# ✅ SAFE RSI (NO NAN EVER)
 def calculate_rsi(prices, period=14):
+    prices = np.array(prices)
+
     if len(prices) < period + 1:
+        return 50
+
+    if np.isnan(prices).any():
         return 50
 
     deltas = np.diff(prices)
@@ -33,17 +38,26 @@ def calculate_rsi(prices, period=14):
 def get_data():
     results = []
 
-    for asset in assets:
+    for asset in ASSETS:
         try:
             data = yf.download(asset, period="1d", interval="5m", progress=False)
 
-            if data.empty or len(data) < 20:
+            if data is None or data.empty:
+                continue
+
+            data = data.dropna()
+
+            if len(data) < 30:
                 continue
 
             ohlc = data.tail(40)
 
+            # ✅ CLEAN CANDLES
             candles = []
             for i, row in ohlc.iterrows():
+                if any(np.isnan([row["Open"], row["High"], row["Low"], row["Close"]])):
+                    continue
+
                 candles.append({
                     "time": int(i.timestamp()),
                     "open": float(row["Open"]),
@@ -52,7 +66,10 @@ def get_data():
                     "close": float(row["Close"])
                 })
 
-            closes = ohlc["Close"].values
+            closes = ohlc["Close"].dropna().values
+
+            if len(closes) < 20:
+                continue
 
             price = float(closes[-1])
             prev_price = float(closes[-2])
@@ -62,7 +79,10 @@ def get_data():
             ema_long = np.mean(closes[-15:])
             rsi = calculate_rsi(closes)
 
-            # 🔥 PRO SIGNAL
+            if np.isnan(rsi):
+                rsi = 50
+
+            # ✅ BALANCED SIGNAL SYSTEM
             score = 0
 
             if ema_short > ema_long:
@@ -135,7 +155,7 @@ def predict(asset):
 @app.route("/search")
 def search():
     q = request.args.get("q", "").upper()
-    return jsonify([a for a in assets if q in a])
+    return jsonify([a for a in ASSETS if q in a])
 
 
 if __name__ == "__main__":
