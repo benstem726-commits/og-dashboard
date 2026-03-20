@@ -74,9 +74,9 @@ def get_data():
             score += 1 if ema_short > ema_long else -1
             score += 1 if change > 0 else -1
 
-            if rsi < 35:
+            if rsi < 30:
                 score += 1
-            elif rsi > 65:
+            elif rsi > 70:
                 score -= 1
 
             if score >= 2:
